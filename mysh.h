@@ -1,5 +1,5 @@
 /*
- * [YOUR NAME HERE]
+ * Zach Dummer
  *
  * CS441/541: Project 3
  *
