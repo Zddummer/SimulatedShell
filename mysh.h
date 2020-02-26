@@ -10,6 +10,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdbool.h>
 
 /* For fork, exec, sleep */
 #include <sys/types.h>
@@ -188,5 +189,43 @@ int builtin_fg(void);
  *   Negative value on error
  */
 int builtin_fg_num(int job_num);
+
+/*
+ * creates jobs from CLI command
+ *
+ * Parameters:
+ *	String
+ *
+ * Returns:
+ *   0 on success
+ *   Negative value on error
+ */
+int createJobs(char *strInputFromCLI);
+
+/*
+ * Handles foreground jobs
+ *
+ * Parameters:
+ *	array of jobs
+ *	size of array
+ *
+ * Returns:
+ *   0 on success
+ *   Negative value on error
+ */
+int handleFGJobs(job_t arrFGJobs[], int intArraySize);
+
+/*
+ * handles background jobs
+ *
+ * Parameters:
+ *	array of jobs
+ *	size of array
+ *
+ * Returns:
+ *   0 on success
+ *   Negative value on error
+ */
+int handleBGJobs(job_t arrFGJobs[], int intArraySize);
 
 #endif /* MYSHELL_H */

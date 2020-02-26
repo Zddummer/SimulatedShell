@@ -107,27 +107,145 @@ int batch_mode(void)
     return 0;
 }
 
+int handleFGJobs(job_t arrFGJobs[], int intArraySize)
+{
+	// To Do
+	return 0;
+}
+
+
+int handleBGJobs(job_t arrFGJobs[], int intArraySize)
+{
+	// To Do
+	return 0;
+}
+
+int createJobs(char *strInputFromCLI)
+{
+	int intTotalSizeOfCommands = 0;
+	int intNumberOfFGJobs = 0;
+	int intNumberOfBGJobs = 0;
+	char *strFGDesignator = ";";
+	char *strBGDesignator = "&";
+    int intFGIndex = 0;
+    int intBGIndex = 0;
+
+	int index=0;
+    char **arrCommands=NULL;
+    char *command= malloc(strlen(strInputFromCLI)+1);
+    strcpy(command, strInputFromCLI);
+    char *tok = strtok(command, " ");
+    
+    /*
+     * Loop through string and break it up into an array
+     */
+    while(tok!=NULL) {
+        intTotalSizeOfCommands++;
+        if(strcmp(tok, strFGDesignator) == 0)
+        {
+        	intNumberOfFGJobs++;
+        }
+        else if(strcmp(tok, strBGDesignator) == 0)
+        {
+        	intNumberOfBGJobs++;
+        }
+        arrCommands = realloc(arrCommands, sizeof(char*)*(index+1));
+        char *dup = malloc(strlen(tok)+1);
+        strcpy(dup, tok);
+        arrCommands[index++] = dup;
+        tok = strtok(NULL, " ");
+    }
+    arrCommands = realloc(arrCommands, sizeof(char*)*(index+1));
+    arrCommands[index]=NULL;
+    free(command);
+    
+    if( (strcmp(arrCommands[index - 1], ";") != 0) && (strcmp(arrCommands[index - 1], "&") != 0) )
+    {
+    	intNumberOfFGJobs++;
+    }
+
+    job_t arrFGJobs[intNumberOfFGJobs];
+    job_t arrBGJobs[intNumberOfBGJobs];
+
+
+	int i;
+	for(i = 0; i < intTotalSizeOfCommands; i++){
+		char *strFullCommand;
+		while(arrCommands[i] != NULL && (strcmp(arrCommands[i], ";") != 0) && (strcmp(arrCommands[i], "&") != 0))
+		{
+			if(arrCommands[i + 1] != NULL && (strcmp(arrCommands[i + 1], ";") != 0) && (strcmp(arrCommands[i + 1], "&") != 0))
+			{
+				strFullCommand = malloc(strlen(arrCommands[i] + strlen(arrCommands[i + 1]) + 2));
+				strFullCommand[0] = '\0';
+				strcat(strFullCommand, arrCommands[i]);
+				strcat(strFullCommand, " ");
+				strcat(strFullCommand, arrCommands[i + 1]);
+				i += 2;
+			}
+			else
+			{
+				strFullCommand = malloc(strlen(arrCommands[i] + 1));
+				strFullCommand[0] = '\0';
+				strcat(strFullCommand, arrCommands[i]);
+				i++;
+			}
+		}
+
+		if(arrCommands[i] != NULL && strcmp(arrCommands[i], "&") == 0)
+		{
+			arrBGJobs[intBGIndex].full_command = strFullCommand;
+			arrBGJobs[intBGIndex].is_background = TRUE;
+			arrBGJobs[intBGIndex].binary = NULL;
+			intBGIndex++;
+		}
+		else
+		{
+			arrFGJobs[intFGIndex].full_command = strFullCommand;
+			arrBGJobs[intFGIndex].is_background = FALSE;
+			arrBGJobs[intBGIndex].binary = NULL;
+			intFGIndex++;
+		}
+	}
+
+	handleBGJobs(arrBGJobs, intNumberOfBGJobs);
+	handleFGJobs(arrFGJobs, intNumberOfFGJobs);
+
+	return 0;
+}
+
 int interactive_mode(void)
 {
 
-    //do {
+	bool blnIsRunning = true;
+
+    do {
+    	
+    	char strInputFromCLI[MAX_COMMAND_LINE];
+
         /*
          * Print the prompt
          */
-        
+        printf("%s", PROMPT);
         /*
          * Read stdin, break out of loop if Ctrl-D
          */
-        
+        if(fgets(strInputFromCLI, MAX_COMMAND_LINE, stdin) == NULL)
+        {
+        	printf("\n"); /* print a newline so next command is on a newline */
+        	exit(0);
+        }
+        else
+        {
+        	/* Strip off the newline */
+        	strtok(strInputFromCLI, "\n");
+        	
+        	/*
+         	 * Parse and execute the command
+         	 */
+        	createJobs(strInputFromCLI);
+        }
 
-        /* Strip off the newline */
-       
-
-        /*
-         * Parse and execute the command
-         */
-       
-    //} while( 1/* end condition */);
+    } while(blnIsRunning);
 
     /*
      * Cleanup
