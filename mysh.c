@@ -26,7 +26,7 @@ int main(int argc, char * argv[]) {
             printf("Batch Mode!\n");
         }
 
-        if( 0 != (ret = batch_mode()) ) {
+        if( 0 != (ret = batch_mode(argc, argv)) ) {
             fprintf(stderr, "Error: Batch mode returned a failure!\n");
         }
     }
@@ -74,21 +74,30 @@ int parse_args_main(int argc, char **argv)
      * If no command line arguments were passed then this is an interactive
      * mode run.
      */
-
+    if(argc == 1)
+    {
+        is_batch = FALSE;
+    }
     /*
      * If command line arguments were supplied then this is batch mode.
      */
+    else
+    {
+        is_batch = TRUE;
+    }
 
     return 0;
 }
 
-int batch_mode(void)
+int batch_mode(int argc, char * argv[])
 {
 
     /*
      * For each file...
      */
-
+    int i;
+    for(i = 1; i < argc; i++)
+    {
         /*
          * Open the batch file
          * If there was an error then print a message and move on to the next file.
@@ -98,6 +107,32 @@ int batch_mode(void)
          *   - parse and execute
          * Close the file
          */
+        FILE *fCurrentFile;
+        fCurrentFile = fopen(argv[i], "r");
+        char strLine[30];
+        if( fCurrentFile == NULL)
+        {
+            printf("ERROR: The file \"%s\" could not be found!\n", argv[i]);
+        }
+        else
+        {
+            while(fscanf(fCurrentFile, "%[^\n]\n", strLine) != EOF)
+            {
+                createJobs(strLine);
+                total_jobs++;
+                total_history++;
+                
+                int j;
+                int length = strlen(strLine);
+
+                for (j = 0; j < length; j++) {
+                    if (strLine[j] == '&') {
+                        total_jobs_bg++;
+                    }
+                }
+            }
+        }
+    }
 
     /*
      * Cleanup

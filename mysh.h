@@ -92,7 +92,7 @@ int parse_args_main(int argc, char **argv);
  *   0 on success
  *   Negative value on error
  */
-int batch_mode(void);
+int batch_mode(int argc, char * argv[]);
 
 /*
  * Main routine for interactive mode
