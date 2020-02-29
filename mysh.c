@@ -144,7 +144,11 @@ int handleJobs(job_t *arrJobs[], int intArraySize)
         }
         else
         {
-            waitpid(c_pid, &status, 0);
+            if(arrJobs[i]->is_background == FALSE)
+            {
+                waitpid(c_pid, &status, 0);
+            }
+
         }
 
         /* saftey */
@@ -206,23 +210,25 @@ int createJobs(char *strInputFromCLI)
         job_t *CurrentJob = CurrentJob = malloc(sizeof(job_t));
         CurrentJob->argc = 0;
         CurrentJob->argv = NULL;
+        CurrentJob->is_background = FALSE;
         CurrentJob->binary = arrCommands[i];
 
         i++;
         int j = 0;
 		while(arrCommands[i] != NULL && (strcmp(arrCommands[i], ";") != 0))
 		{
-            CurrentJob->argv = realloc(CurrentJob->argv, sizeof(char*)*(j + 1));
-            char *dup = malloc(strlen(arrCommands[i]) + 1);
-            strcpy(dup, arrCommands[i]);
-            CurrentJob->argv[j] = dup;
-            CurrentJob->argc++;
 
             if(strcmp(arrCommands[i], "&") == 0)
             {
                 CurrentJob->is_background = TRUE;
                 break;
             }
+
+            CurrentJob->argv = realloc(CurrentJob->argv, sizeof(char*)*(j + 1));
+            char *dup = malloc(strlen(arrCommands[i]) + 1);
+            strcpy(dup, arrCommands[i]);
+            CurrentJob->argv[j] = dup;
+            CurrentJob->argc++;
 
             i++;
             j++;
