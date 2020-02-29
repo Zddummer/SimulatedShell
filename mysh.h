@@ -213,19 +213,6 @@ int createJobs(char *strInputFromCLI);
  *   0 on success
  *   Negative value on error
  */
-int handleFGJobs(job_t arrFGJobs[], int intArraySize);
-
-/*
- * handles background jobs
- *
- * Parameters:
- *	array of jobs
- *	size of array
- *
- * Returns:
- *   0 on success
- *   Negative value on error
- */
-int handleBGJobs(job_t arrFGJobs[], int intArraySize);
+int handleJobs(job_t *arrJobs[], int intArraySize);
 
 #endif /* MYSHELL_H */

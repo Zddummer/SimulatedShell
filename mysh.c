@@ -107,47 +107,79 @@ int batch_mode(void)
     return 0;
 }
 
-int handleFGJobs(job_t arrFGJobs[], int intArraySize)
+int handleJobs(job_t *arrJobs[], int intArraySize)
 {
-	// To Do
-	return 0;
-}
+	int i;
+    for(i = 0; i < intArraySize; i++)
+    {
+        pid_t c_pid = 0;
+        int status = 0;
+        char *binary = NULL;
+        char **args = NULL;
+        int j;
 
+        binary = strdup(arrJobs[i]->binary);
+        args = (char **)malloc(sizeof(char *) + sizeof(arrJobs[i]->argv));
 
-int handleBGJobs(job_t arrFGJobs[], int intArraySize)
-{
-	// To Do
+        args[0] = strdup(binary);
+        for(j = 0; j < arrJobs[i]->argc; j++)
+        {
+            args[j + 1] = strdup(arrJobs[i]->argv[j]);
+        }
+        args[arrJobs[i]->argc + 2] = NULL;
+
+        c_pid = fork();
+
+        if(c_pid < 0)
+        {
+            fprintf(stderr, "ERROR: fork failed!\n");
+            return -1;
+        }
+        else if(c_pid == 0)
+        {
+            execvp(binary, args);
+
+            fprintf(stderr, "ERROR: Exec failed!\n");
+            exit(-1);
+        }
+        else
+        {
+            waitpid(c_pid, &status, 0);
+        }
+
+        /* saftey */
+        if(i > 20){
+            exit(-1);
+        }
+    }
 	return 0;
 }
 
 int createJobs(char *strInputFromCLI)
 {
 	int intTotalSizeOfCommands = 0;
-	int intNumberOfFGJobs = 0;
-	int intNumberOfBGJobs = 0;
-	char *strFGDesignator = ";";
-	char *strBGDesignator = "&";
-    int intFGIndex = 0;
-    int intBGIndex = 0;
+	int intNumberOfJobs = 0;
 
 	int index=0;
     char **arrCommands=NULL;
     char *command= malloc(strlen(strInputFromCLI)+1);
     strcpy(command, strInputFromCLI);
     char *tok = strtok(command, " ");
+
+    int intJobIndex = 0;
     
     /*
      * Loop through string and break it up into an array
      */
     while(tok!=NULL) {
         intTotalSizeOfCommands++;
-        if(strcmp(tok, strFGDesignator) == 0)
+        if(strcmp(tok, ";") == 0)
         {
-        	intNumberOfFGJobs++;
+        	intNumberOfJobs++;
         }
-        else if(strcmp(tok, strBGDesignator) == 0)
+        else if(strcmp(tok, "&") == 0)
         {
-        	intNumberOfBGJobs++;
+        	intNumberOfJobs++;
         }
         arrCommands = realloc(arrCommands, sizeof(char*)*(index+1));
         char *dup = malloc(strlen(tok)+1);
@@ -161,54 +193,58 @@ int createJobs(char *strInputFromCLI)
     
     if( (strcmp(arrCommands[index - 1], ";") != 0) && (strcmp(arrCommands[index - 1], "&") != 0) )
     {
-    	intNumberOfFGJobs++;
+    	intNumberOfJobs++;
     }
 
-    job_t arrFGJobs[intNumberOfFGJobs];
-    job_t arrBGJobs[intNumberOfBGJobs];
+    job_t *arrJobs[intNumberOfJobs];
 
+    int i;
+	for(i = 0; i < intTotalSizeOfCommands; i++)
+    {
+		
+        char *strFullCommand;
+        job_t *CurrentJob = CurrentJob = malloc(sizeof(job_t));
+        CurrentJob->argc = 0;
+        CurrentJob->argv = NULL;
+        CurrentJob->binary = arrCommands[i];
 
-	int i;
-	for(i = 0; i < intTotalSizeOfCommands; i++){
-		char *strFullCommand;
-		while(arrCommands[i] != NULL && (strcmp(arrCommands[i], ";") != 0) && (strcmp(arrCommands[i], "&") != 0))
+        i++;
+        int j = 0;
+		while(arrCommands[i] != NULL && (strcmp(arrCommands[i], ";") != 0))
 		{
-			if(arrCommands[i + 1] != NULL && (strcmp(arrCommands[i + 1], ";") != 0) && (strcmp(arrCommands[i + 1], "&") != 0))
-			{
-				strFullCommand = malloc(strlen(arrCommands[i] + strlen(arrCommands[i + 1]) + 2));
-				strFullCommand[0] = '\0';
-				strcat(strFullCommand, arrCommands[i]);
-				strcat(strFullCommand, " ");
-				strcat(strFullCommand, arrCommands[i + 1]);
-				i += 2;
-			}
-			else
-			{
-				strFullCommand = malloc(strlen(arrCommands[i] + 1));
-				strFullCommand[0] = '\0';
-				strcat(strFullCommand, arrCommands[i]);
-				i++;
-			}
+            CurrentJob->argv = realloc(CurrentJob->argv, sizeof(char*)*(j + 1));
+            char *dup = malloc(strlen(arrCommands[i]) + 1);
+            strcpy(dup, arrCommands[i]);
+            CurrentJob->argv[j] = dup;
+            CurrentJob->argc++;
+
+            if(strcmp(arrCommands[i], "&") == 0)
+            {
+                CurrentJob->is_background = TRUE;
+                break;
+            }
+
+            i++;
+            j++;
 		}
 
-		if(arrCommands[i] != NULL && strcmp(arrCommands[i], "&") == 0)
-		{
-			arrBGJobs[intBGIndex].full_command = strFullCommand;
-			arrBGJobs[intBGIndex].is_background = TRUE;
-			arrBGJobs[intBGIndex].binary = NULL;
-			intBGIndex++;
-		}
-		else
-		{
-			arrFGJobs[intFGIndex].full_command = strFullCommand;
-			arrBGJobs[intFGIndex].is_background = FALSE;
-			arrBGJobs[intBGIndex].binary = NULL;
-			intFGIndex++;
-		}
+        strFullCommand = malloc(strlen(CurrentJob->binary) + sizeof(CurrentJob->argv) + CurrentJob->argc);
+        strFullCommand[0] = '\0';
+        strcat(strFullCommand, CurrentJob->binary);
+
+        int numArgs;
+        for(numArgs = 0; numArgs < CurrentJob->argc; numArgs++)
+        {
+            strcat(strFullCommand, " ");
+            strcat(strFullCommand, CurrentJob->argv[numArgs]);
+        }
+
+        CurrentJob->full_command = strFullCommand;
+        arrJobs[intJobIndex] = CurrentJob;
+        intJobIndex++;
 	}
 
-	handleBGJobs(arrBGJobs, intNumberOfBGJobs);
-	handleFGJobs(arrFGJobs, intNumberOfFGJobs);
+	handleJobs(arrJobs, intNumberOfJobs);
 
 	return 0;
 }
