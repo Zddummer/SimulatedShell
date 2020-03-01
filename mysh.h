@@ -63,6 +63,9 @@ int is_batch = FALSE;
 int bgJobSize = 0;
 bgJob *bgJobs[MAX_COMMAND_LINE];
 
+int intTotalJobs = 0;
+char *arrHistory[MAX_COMMAND_LINE];
+
 /*
  * Counts
  */

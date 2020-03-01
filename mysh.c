@@ -294,6 +294,7 @@ int createJobs(char *strInputFromCLI)
     char *tok = strtok(command, " ");
 
     int intJobIndex = 0;
+    char *strTemp;
     
     /*
      * Loop through string and break it up into an array
@@ -371,6 +372,20 @@ int createJobs(char *strInputFromCLI)
         CurrentJob->full_command = strFullCommand;
         arrJobs[intJobIndex] = CurrentJob;
         intJobIndex++;
+
+        if(CurrentJob->is_background == TRUE)
+        {
+            strTemp = malloc(sizeof(strFullCommand) + sizeof(" &"));
+            strTemp[0] = '\0';
+            strcat(strTemp, strFullCommand);
+            strcat(strTemp, " &");
+            arrHistory[intTotalJobs] = strTemp;
+        }
+        else
+        {
+            arrHistory[intTotalJobs] = strFullCommand;
+        }
+        intTotalJobs++;
 	}
 
 	handleJobs(arrJobs, intNumberOfJobs);
@@ -482,6 +497,11 @@ int builtin_jobs(void)
 int builtin_history(void)
 {
 
+    int i;
+    for(i = 0; i < intTotalJobs; i++)
+    {
+        printf("%d\t%s\n", i + 1, arrHistory[i]);
+    }
     return 0;
 }
 
