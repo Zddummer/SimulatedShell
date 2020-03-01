@@ -142,9 +142,60 @@ int batch_mode(int argc, char * argv[])
     return 0;
 }
 
+int handlels(char **args, int argc, int is_bg)
+{   
+    int i;
+    for (i = argc; i > 0; i--)
+    {
+        if(i < argc)
+        {
+            printf("\n");
+        }
+        printf("%s:\n", args[i]);
+
+        pid_t c_pid = 0;
+        int status = 0;
+        char **temp = NULL;
+
+        temp = (char **)malloc(sizeof(char *) * 3);
+        temp[0] = strdup("/bin/ls");
+        temp[1] = strdup(args[i]);
+        temp[2] = NULL;
+
+
+        c_pid = fork();
+
+        if(c_pid < 0)
+        {
+            fprintf(stderr, "ERROR: fork failed!\n");
+            return -1;
+        }
+        else if(c_pid == 0)
+        {
+            execvp(temp[0], temp);
+
+            fprintf(stderr, "ERROR: Exec failed!\n");
+            exit(-1);
+        }
+        else
+        {
+            if(is_bg == FALSE)
+            {
+                waitpid(c_pid, &status, 0);
+            }
+        }
+        
+        /* saftey */
+        if(i > MAX_COMMAND_LINE){
+            exit(-1);
+        }
+    }
+    return 0;
+}
+
 int handleJobs(job_t *arrJobs[], int intArraySize)
 {
-	int i;
+    int i;
     for(i = 0; i < intArraySize; i++)
     {
         pid_t c_pid = 0;
@@ -163,35 +214,61 @@ int handleJobs(job_t *arrJobs[], int intArraySize)
         }
         args[arrJobs[i]->argc + 2] = NULL;
 
-        c_pid = fork();
-
-        if(c_pid < 0)
+        if((strcmp(binary, "ls") == 0 || strcmp(binary, "/bin/ls") == 0) && arrJobs[i]->argc > 1)
         {
-            fprintf(stderr, "ERROR: fork failed!\n");
-            return -1;
+            handlels(args, arrJobs[i]->argc, arrJobs[i]->is_background);
         }
-        else if(c_pid == 0)
+        else if(strcmp(binary, "jobs") == 0)
         {
-            execvp(binary, args);
-
-            fprintf(stderr, "ERROR: Exec failed!\n");
-            exit(-1);
+            builtin_jobs();
+        }
+        else if(strcmp(binary, "history") == 0)
+        {
+            builtin_history();
+        }
+        else if(strcmp(binary, "wait") == 0)
+        {
+            builtin_wait();
+        }
+        else if(strcmp(binary, "fg") == 0)
+        {
+            builtin_fg();
+        }
+        else if(strcmp(binary, "exit") == 0)
+        {
+            builtin_exit();
         }
         else
         {
-            if(arrJobs[i]->is_background == FALSE)
-            {
-                waitpid(c_pid, &status, 0);
-            }
+            c_pid = fork();
 
+            if(c_pid < 0)
+            {
+                fprintf(stderr, "ERROR: fork failed!\n");
+                return -1;
+            }
+            else if(c_pid == 0)
+            {
+                execvp(binary, args);
+
+                fprintf(stderr, "ERROR: Exec failed!\n");
+                exit(-1);
+            }
+            else
+            {
+                if(arrJobs[i]->is_background == FALSE)
+                {
+                    waitpid(c_pid, &status, 0);
+                }
+            }
         }
 
         /* saftey */
-        if(i > 20){
+        if(i > MAX_COMMAND_LINE){
             exit(-1);
         }
     }
-	return 0;
+    return 0;
 }
 
 int createJobs(char *strInputFromCLI)

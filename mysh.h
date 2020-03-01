@@ -213,6 +213,6 @@ int createJobs(char *strInputFromCLI);
  *   0 on success
  *   Negative value on error
  */
-int handleJobs(job_t *arrJobs[], int intArraySize);
+int handlels(char **args, int argc, int is_bg);
 
 #endif /* MYSHELL_H */
