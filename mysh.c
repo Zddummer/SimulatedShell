@@ -507,7 +507,11 @@ int builtin_history(void)
 
 int builtin_wait(void)
 {
-
+    int i;
+    for(i = 0; i < bgJobSize; i++)
+    {
+        waitpid(bgJobs[i]->pid, NULL, 0);
+    }
     return 0;
 }
 
