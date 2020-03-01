@@ -232,7 +232,14 @@ int handleJobs(job_t *arrJobs[], int intArraySize)
         }
         else if(strcmp(binary, "fg") == 0)
         {
-            builtin_fg();
+            if(arrJobs[i]->argc == 0)
+            {
+                builtin_fg();
+            }
+            else
+            {
+                builtin_fg_num(atoi(args[1]));
+            }
         }
         else if(strcmp(binary, "exit") == 0)
         {
@@ -517,12 +524,31 @@ int builtin_wait(void)
 
 int builtin_fg(void)
 {
-
+    int i;
+    for(i = bgJobSize - 1; i > 0; i--){
+        if(bgJobs[i]->isRunning == TRUE)
+        {
+            waitpid(bgJobs[i]->pid, NULL, 0);
+            bgJobs[i]->wasDisplayed = TRUE;
+            return 0;
+        }
+    }
+    fprintf(stderr, "ERROR: There is no running background Process!\n");
     return 0;
 }
 
 int builtin_fg_num(int job_num)
 {
+    job_num--;
+    if(job_num < bgJobSize && bgJobs[job_num]->isRunning == TRUE)
+    {
+        waitpid(bgJobs[job_num]->pid, NULL, 0);
+        bgJobs[job_num]->wasDisplayed = TRUE;
+    }
+    else
+    {
+        fprintf(stderr, "ERROR: That is not a running Process!\n");
+    }
 
     return 0;
 }
