@@ -44,6 +44,14 @@ struct job_t {
 };
 typedef struct job_t job_t;
 
+struct bgJob {
+	pid_t pid;
+	int isRunning;
+	int wasDisplayed;
+	char * strFullCommand;
+};
+typedef struct bgJob bgJob;
+
 /******************************
  * Global Variables
  ******************************/
@@ -52,6 +60,8 @@ typedef struct job_t job_t;
  * Interactive or batch mode
  */
 int is_batch = FALSE;
+int bgJobSize = 0;
+bgJob *bgJobs[MAX_COMMAND_LINE];
 
 /*
  * Counts

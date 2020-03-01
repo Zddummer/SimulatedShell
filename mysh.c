@@ -260,6 +260,17 @@ int handleJobs(job_t *arrJobs[], int intArraySize)
                 {
                     waitpid(c_pid, &status, 0);
                 }
+                else
+                {
+                    bgJob *newJob = malloc(sizeof(bgJob));
+                    newJob->pid = c_pid;
+                    newJob->isRunning = TRUE;
+                    newJob->wasDisplayed = FALSE;
+                    newJob->strFullCommand = arrJobs[i]->full_command;
+
+                    bgJobs[bgJobSize] = newJob;
+                    bgJobSize++;
+                }
             }
         }
 
@@ -319,7 +330,7 @@ int createJobs(char *strInputFromCLI)
     {
 		
         char *strFullCommand;
-        job_t *CurrentJob = CurrentJob = malloc(sizeof(job_t));
+        job_t *CurrentJob = malloc(sizeof(job_t));
         CurrentJob->argc = 0;
         CurrentJob->argv = NULL;
         CurrentJob->is_background = FALSE;
@@ -440,7 +451,31 @@ int builtin_exit(void)
 
 int builtin_jobs(void)
 {
+    int i;
+    for(i = 0; i < bgJobSize; i++)
+    {
+        if(waitpid(bgJobs[i]->pid, NULL, WNOHANG) == 0)
+        { 
+            bgJobs[i]->isRunning = TRUE;
+        }
+        else
+        {
+            bgJobs[i]->isRunning = FALSE;
+        }
 
+        if(bgJobs[i]->wasDisplayed == FALSE){
+            printf("[%d]\t", i + 1);
+            if(bgJobs[i]->isRunning == TRUE){
+                printf("Running\t");
+            }
+            else
+            {
+                printf("Done\t");
+                bgJobs[i]->wasDisplayed = TRUE;
+            }
+            printf("%s &\n", bgJobs[i]->strFullCommand);
+        }
+    }
     return 0;
 }
 
