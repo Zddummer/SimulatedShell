@@ -6,95 +6,114 @@
  */
 #include "mysh.h"
 
-int main(int argc, char * argv[]) {
-  int ret;
-
-    /*
-     * Parse Command line arguments to check if this is an interactive or batch
-     * mode run.
-     */
-    if( 0 != (ret = parse_args_main(argc, argv)) ) {
-        fprintf(stderr, "Error: Invalid command line!\n");
-        return -1;
-    }
-
-    /*
-     * If in batch mode then process all batch files
-     */
-    if( TRUE == is_batch) {
-        if( TRUE == is_debug ) {
-            printf("Batch Mode!\n");
-        }
-
-        if( 0 != (ret = batch_mode(argc, argv)) ) {
-            fprintf(stderr, "Error: Batch mode returned a failure!\n");
-        }
-    }
-    /*
-     * Otherwise proceed in interactive mode
-     */
-    else if( FALSE == is_batch ) {
-        if( TRUE == is_debug ) {
-            printf("Interactive Mode!\n");
-        }
-
-        if( 0 != (ret = interactive_mode()) ) {
-            fprintf(stderr, "Error: Interactive mode returned a failure!\n");
-        }
-    }
-    /*
-     * This should never happen, but otherwise unknown mode
-     */
-    else {
-        fprintf(stderr, "Error: Unknown execution mode!\n");
-        return -1;
-    }
-
-
-    /*
-     * Display counts
-     */
-    printf("-------------------------------\n");
-    printf("Total number of jobs               = %d\n", total_jobs);
-    printf("Total number of jobs in history    = %d\n", total_history);
-    printf("Total number of jobs in background = %d\n", total_jobs_bg);
-
-    /*
-     * Cleanup
-     */
-
-
-    return 0;
-}
-
-int parse_args_main(int argc, char **argv)
+void parseCommandLine(int argc, char * argv[])
 {
-
-    /*
+	/*
      * If no command line arguments were passed then this is an interactive
      * mode run.
      */
     if(argc == 1)
     {
-        is_batch = FALSE;
+        blnIsBatch = false;
     }
     /*
      * If command line arguments were supplied then this is batch mode.
      */
     else
     {
-        is_batch = TRUE;
+        blnIsBatch = true;
     }
-
-    return 0;
 }
 
-int batch_mode(int argc, char * argv[])
+void createJobs(char *strInputFromCLI)
 {
+	int index = 0;
+	int intNumJobs = 0;
+    char **arrCommands = NULL;
+    char *command = malloc(strlen(strInputFromCLI) + 1);
+    strcpy(command, strInputFromCLI);
+    char *tok = strtok(command, " ");
 
     /*
-     * For each file...
+     * Loop through string and break it up into an array
      */
+    while(tok != NULL)
+    {
+        if(strcmp(tok, ";") == 0)
+        {
+        	intNumJobs++;
+        }
+        else if(strcmp(tok, "&") == 0)
+        {
+        	intNumJobs++;
+        }
+
+        arrCommands = realloc(arrCommands, sizeof(char*) * (index + 1));
+        char *dup = malloc(strlen(tok) + 1);
+        strcpy(dup, tok);
+        arrCommands[index++] = dup;
+        tok = strtok(NULL, " ");
+
+    }
+
+    arrCommands = realloc(arrCommands, sizeof(char*) * (index + 1));
+    arrCommands[index] = NULL;
+    free(command);
+
+    int i;
+    for(i = 0; i < index; i++)
+    {
+        struct job_t *CurrentJob = malloc(sizeof(job_t));
+        CurrentJob->intArgCount = 0;
+        CurrentJob->arrArgArray = NULL;
+        CurrentJob->isBackground = false;
+        char *strTemp = strdup(arrCommands[i]);
+        CurrentJob->binary = strdup(strTemp);
+
+        i++;
+        int intTempArrIndex = 0;
+        char **arrTempArgs = NULL;
+        while(arrCommands[i] != NULL && (strcmp(arrCommands[i], ";") != 0))
+        {
+
+            if(strcmp(arrCommands[i], "&") == 0)
+            {
+                CurrentJob->isBackground = true;
+                break;
+            }
+            arrTempArgs = realloc(arrTempArgs, sizeof(char*) * (intTempArrIndex + 1));
+            char *strTemp = malloc(strlen(arrCommands[i]) + 1);
+            strcpy(strTemp, arrCommands[i]);
+            arrTempArgs[intTempArrIndex++] = strTemp;
+
+            i++;
+        }
+        arrTempArgs = realloc(arrTempArgs, sizeof(char*) * (intTempArrIndex + 1));
+        arrTempArgs[intTempArrIndex] = NULL;
+
+        CurrentJob->intArgCount = intTempArrIndex;
+        CurrentJob->arrArgArray = (char **)malloc(sizeof(char *) * (intTempArrIndex + 1));
+        CurrentJob->strFullCommand = (char *)malloc(sizeof(char));
+        CurrentJob->strFullCommand[0] = '\0';
+        strcat(CurrentJob->strFullCommand, CurrentJob->binary);
+        int j;
+        for(j = 0; j < intTempArrIndex; j++)
+        {
+            char *strTempArg = strdup(arrTempArgs[j]);
+            CurrentJob->arrArgArray[j] = strdup(strTempArg);
+
+            strcat(CurrentJob->strFullCommand, " ");
+            strcat(CurrentJob->strFullCommand, strTempArg);
+        }
+        addJobToHistory(CurrentJob);
+        executeCommand(CurrentJob);
+    }
+
+    
+}
+
+void runInBatchMode(int argc, char * argv[])
+{
     int i;
     for(i = 1; i < argc; i++)
     {
@@ -109,7 +128,7 @@ int batch_mode(int argc, char * argv[])
          */
         FILE *fCurrentFile;
         fCurrentFile = fopen(argv[i], "r");
-        char strLine[30];
+        char strLine[MAX_COMMAND_LINE];
         if( fCurrentFile == NULL)
         {
             printf("ERROR: The file \"%s\" could not be found!\n", argv[i]);
@@ -119,293 +138,16 @@ int batch_mode(int argc, char * argv[])
             while(fscanf(fCurrentFile, "%[^\n]\n", strLine) != EOF)
             {
                 createJobs(strLine);
-                total_jobs++;
-                total_history++;
-                
-                int j;
-                int length = strlen(strLine);
-
-                for (j = 0; j < length; j++) {
-                    if (strLine[j] == '&') {
-                        total_jobs_bg++;
-                    }
-                }
             }
         }
     }
-
-    /*
-     * Cleanup
-     */
-
-
-    return 0;
 }
 
-int handlels(char **args, int argc, int is_bg)
-{   
-    int i;
-    for (i = argc; i > 0; i--)
-    {
-        if(i < argc)
-        {
-            printf("\n");
-        }
-        printf("%s:\n", args[i]);
-
-        pid_t c_pid = 0;
-        int status = 0;
-        char **temp = NULL;
-
-        temp = (char **)malloc(sizeof(char *) * 3);
-        temp[0] = strdup("/bin/ls");
-        temp[1] = strdup(args[i]);
-        temp[2] = NULL;
-
-
-        c_pid = fork();
-
-        if(c_pid < 0)
-        {
-            fprintf(stderr, "ERROR: fork failed!\n");
-            return -1;
-        }
-        else if(c_pid == 0)
-        {
-            execvp(temp[0], temp);
-
-            fprintf(stderr, "ERROR: Exec failed!\n");
-            exit(-1);
-        }
-        else
-        {
-            if(is_bg == FALSE)
-            {
-                waitpid(c_pid, &status, 0);
-            }
-        }
-        
-        /* saftey */
-        if(i > MAX_COMMAND_LINE){
-            exit(-1);
-        }
-    }
-    return 0;
-}
-
-int handleJobs(job_t *arrJobs[], int intArraySize)
+void runInInteractiveMode()
 {
-    int i;
-    for(i = 0; i < intArraySize; i++)
-    {
-        pid_t c_pid = 0;
-        int status = 0;
-        char *binary = NULL;
-        char **args = NULL;
-        int j;
+	bool blnKeepRunning = true;
 
-        binary = strdup(arrJobs[i]->binary);
-        args = (char **)malloc(sizeof(char *) + sizeof(arrJobs[i]->argv));
-
-        args[0] = strdup(binary);
-        for(j = 0; j < arrJobs[i]->argc; j++)
-        {
-            args[j + 1] = strdup(arrJobs[i]->argv[j]);
-        }
-        args[arrJobs[i]->argc + 2] = NULL;
-
-        if((strcmp(binary, "ls") == 0 || strcmp(binary, "/bin/ls") == 0) && arrJobs[i]->argc > 1)
-        {
-            handlels(args, arrJobs[i]->argc, arrJobs[i]->is_background);
-        }
-        else if(strcmp(binary, "jobs") == 0)
-        {
-            builtin_jobs();
-        }
-        else if(strcmp(binary, "history") == 0)
-        {
-            builtin_history();
-        }
-        else if(strcmp(binary, "wait") == 0)
-        {
-            builtin_wait();
-        }
-        else if(strcmp(binary, "fg") == 0)
-        {
-            if(arrJobs[i]->argc == 0)
-            {
-                builtin_fg();
-            }
-            else
-            {
-                builtin_fg_num(atoi(args[1]));
-            }
-        }
-        else if(strcmp(binary, "exit") == 0)
-        {
-            builtin_exit();
-        }
-        else
-        {
-            c_pid = fork();
-
-            if(c_pid < 0)
-            {
-                fprintf(stderr, "ERROR: fork failed!\n");
-                return -1;
-            }
-            else if(c_pid == 0)
-            {
-                execvp(binary, args);
-
-                fprintf(stderr, "ERROR: Exec failed!\n");
-                exit(-1);
-            }
-            else
-            {
-                if(arrJobs[i]->is_background == FALSE)
-                {
-                    waitpid(c_pid, &status, 0);
-                }
-                else
-                {
-                    bgJob *newJob = malloc(sizeof(bgJob));
-                    newJob->pid = c_pid;
-                    newJob->isRunning = TRUE;
-                    newJob->wasDisplayed = FALSE;
-                    newJob->strFullCommand = arrJobs[i]->full_command;
-
-                    bgJobs[bgJobSize] = newJob;
-                    bgJobSize++;
-                }
-            }
-        }
-
-        /* saftey */
-        if(i > MAX_COMMAND_LINE){
-            exit(-1);
-        }
-    }
-    return 0;
-}
-
-int createJobs(char *strInputFromCLI)
-{
-	int intTotalSizeOfCommands = 0;
-	int intNumberOfJobs = 0;
-
-	int index=0;
-    char **arrCommands=NULL;
-    char *command= malloc(strlen(strInputFromCLI)+1);
-    strcpy(command, strInputFromCLI);
-    char *tok = strtok(command, " ");
-
-    int intJobIndex = 0;
-    char *strTemp;
-    
-    /*
-     * Loop through string and break it up into an array
-     */
-    while(tok!=NULL) {
-        intTotalSizeOfCommands++;
-        if(strcmp(tok, ";") == 0)
-        {
-        	intNumberOfJobs++;
-        }
-        else if(strcmp(tok, "&") == 0)
-        {
-        	intNumberOfJobs++;
-        }
-        arrCommands = realloc(arrCommands, sizeof(char*)*(index+1));
-        char *dup = malloc(strlen(tok)+1);
-        strcpy(dup, tok);
-        arrCommands[index++] = dup;
-        tok = strtok(NULL, " ");
-    }
-    arrCommands = realloc(arrCommands, sizeof(char*)*(index+1));
-    arrCommands[index]=NULL;
-    free(command);
-    
-    if( (strcmp(arrCommands[index - 1], ";") != 0) && (strcmp(arrCommands[index - 1], "&") != 0) )
-    {
-    	intNumberOfJobs++;
-    }
-
-    job_t *arrJobs[intNumberOfJobs];
-
-    int i;
-	for(i = 0; i < intTotalSizeOfCommands; i++)
-    {
-		
-        char *strFullCommand;
-        job_t *CurrentJob = malloc(sizeof(job_t));
-        CurrentJob->argc = 0;
-        CurrentJob->argv = NULL;
-        CurrentJob->is_background = FALSE;
-        CurrentJob->binary = arrCommands[i];
-
-        i++;
-        int j = 0;
-		while(arrCommands[i] != NULL && (strcmp(arrCommands[i], ";") != 0))
-		{
-
-            if(strcmp(arrCommands[i], "&") == 0)
-            {
-                CurrentJob->is_background = TRUE;
-                break;
-            }
-
-            CurrentJob->argv = realloc(CurrentJob->argv, sizeof(char*)*(j + 1));
-            char *dup = malloc(strlen(arrCommands[i]) + 1);
-            strcpy(dup, arrCommands[i]);
-            CurrentJob->argv[j] = dup;
-            CurrentJob->argc++;
-
-            i++;
-            j++;
-		}
-
-        strFullCommand = malloc(strlen(CurrentJob->binary) + sizeof(CurrentJob->argv) + CurrentJob->argc);
-        strFullCommand[0] = '\0';
-        strcat(strFullCommand, CurrentJob->binary);
-
-        int numArgs;
-        for(numArgs = 0; numArgs < CurrentJob->argc; numArgs++)
-        {
-            strcat(strFullCommand, " ");
-            strcat(strFullCommand, CurrentJob->argv[numArgs]);
-        }
-
-        CurrentJob->full_command = strFullCommand;
-        arrJobs[intJobIndex] = CurrentJob;
-        intJobIndex++;
-
-        if(CurrentJob->is_background == TRUE)
-        {
-            strTemp = malloc(sizeof(strFullCommand) + sizeof(" &"));
-            strTemp[0] = '\0';
-            strcat(strTemp, strFullCommand);
-            strcat(strTemp, " &");
-            arrHistory[intTotalJobs] = strTemp;
-        }
-        else
-        {
-            arrHistory[intTotalJobs] = strFullCommand;
-        }
-        intTotalJobs++;
-	}
-
-	handleJobs(arrJobs, intNumberOfJobs);
-
-	return 0;
-}
-
-int interactive_mode(void)
-{
-
-	bool blnIsRunning = true;
-
-    do {
+	do {
     	
     	char strInputFromCLI[MAX_COMMAND_LINE];
 
@@ -419,7 +161,7 @@ int interactive_mode(void)
         if(fgets(strInputFromCLI, MAX_COMMAND_LINE, stdin) == NULL)
         {
         	printf("\n"); /* print a newline so next command is on a newline */
-        	exit(0);
+        	builtin_exit();
         }
         else
         {
@@ -432,70 +174,172 @@ int interactive_mode(void)
         	createJobs(strInputFromCLI);
         }
 
-    } while(blnIsRunning);
-
-    /*
-     * Cleanup
-     */
-
-    return 0;
+    } while(blnKeepRunning);
 }
 
-/*
- * You will want one or more helper functions for parsing the commands 
- * and then call the following functions to execute them
- */
-
-int launch_job(job_t * loc_job)
+void addJobToHistory(job_t *CurrentJob)
 {
+    char *command = malloc(strlen(CurrentJob->strFullCommand) + 1);
+    strcpy(command, CurrentJob->strFullCommand);
 
-    /*
-     * Display the job
-     */
+    arrJobHistory = realloc(arrJobHistory, sizeof(char*) * (intJobHistorySize + 1));
+    char *dup = malloc(strlen(command) + 1);
+    strcpy(dup, command);
 
+    if(CurrentJob->isBackground)
+    {
+        strcat(dup, " &");
+    }
 
-    /*
-     * Launch the job in either the foreground or background
-     */
+    arrJobHistory[intJobHistorySize++] = dup;
 
-    /*
-     * Some accounting
-     */
-
-    return 0;
+    intTotalHistory++;
 }
 
-int builtin_exit(void)
+void addJobToBG(bgJob *jobToAdd)
+{    
+    arrBGJobs = realloc(arrBGJobs, sizeof(bgJob*) * (intBGJobSize + 1));
+    arrBGJobs[intBGJobSize++] = jobToAdd;
+}
+
+bool executeCommand(job_t *CurrentJob)
+{
+	pid_t c_pid = 0;
+	int status = 0;
+	char *binary = NULL;
+	char **args = NULL;
+
+    intTotalJobs++;
+
+	binary = strdup(CurrentJob->binary);
+
+    if(strcmp(binary, "jobs") == 0)
+    {
+        intTotalJobs--;
+        builtin_jobs();
+        return true;
+    }
+    else if(strcmp(binary, "history") == 0)
+    {
+        intTotalJobs--;
+        builtin_history();
+        return true;
+    }
+    else if(strcmp(binary, "wait") == 0)
+    {
+        builtin_wait();
+        return true;
+    }
+    else if(strcmp(binary, "fg") == 0)
+    {
+        if(CurrentJob->intArgCount == 0)
+        {
+            builtin_fg();
+            return true;
+        }
+        else
+        {
+            builtin_fg_num(atoi(CurrentJob->arrArgArray[1]));
+            return true;
+        }
+    }
+    else if(strcmp(binary, "exit") == 0)
+    {
+        intTotalJobs --;
+        builtin_exit();
+    }
+
+	args = (char **)malloc(sizeof(char *) * (CurrentJob->intArgCount + 1));
+	
+    args[0] = strdup(binary);
+	
+    int i;
+    for(i = 1; i <= CurrentJob->intArgCount; i++)
+    {
+        char *temp = strdup(CurrentJob->arrArgArray[i - 1]);
+        args[i] = strdup(temp);
+    }
+
+	args[i] = NULL;
+
+	c_pid = fork();
+
+	if(c_pid < 0)
+	{
+		fprintf(stderr, "ERROR: Fork failed!\n");
+		return false;
+	}
+	else if(c_pid == 0)
+	{
+		execvp(binary, args);
+
+		fprintf(stderr, "ERROR: Exec failed!\n");
+		exit(-1);
+	}
+	else
+	{
+		if(CurrentJob->isBackground == false)
+        {
+            waitpid(c_pid, &status, 0);
+        }
+        else
+        {
+            intTotalJobsInBackground++;
+
+            bgJob *newJob = malloc(sizeof(bgJob));
+            newJob->pid = c_pid;
+            newJob->blnIsRunning = true;
+            newJob->blnWasDisplayed = false;
+            newJob->strFullCommand = strdup(CurrentJob->strFullCommand);
+
+            addJobToBG(newJob);
+        }
+	}
+	return true;
+}
+
+void builtin_exit(void)
 {
 
-    return 0;
+    builtin_jobs();
+    builtin_wait();
+
+    /*
+     * Display counts
+     */
+    printf("-------------------------------\n");
+    printf("Total number of jobs               = %d\n", intTotalJobs);
+    printf("Total number of jobs in history    = %d\n", intTotalHistory);
+    printf("Total number of jobs in background = %d\n", intTotalJobsInBackground);
+    
+    exit(0);
 }
 
 int builtin_jobs(void)
 {
     int i;
-    for(i = 0; i < bgJobSize; i++)
+    for(i = 0; i < intBGJobSize; i++)
     {
-        if(waitpid(bgJobs[i]->pid, NULL, WNOHANG) == 0)
+        if(waitpid(arrBGJobs[i]->pid, NULL, WNOHANG) == 0)
         { 
-            bgJobs[i]->isRunning = TRUE;
+            arrBGJobs[i]->blnIsRunning = true;
         }
         else
         {
-            bgJobs[i]->isRunning = FALSE;
+            arrBGJobs[i]->blnIsRunning = false;
         }
 
-        if(bgJobs[i]->wasDisplayed == FALSE){
+        if(arrBGJobs[i]->blnWasDisplayed == false){
             printf("[%d]\t", i + 1);
-            if(bgJobs[i]->isRunning == TRUE){
+            if(arrBGJobs[i]->blnIsRunning == true){
                 printf("Running\t");
             }
             else
             {
                 printf("Done\t");
-                bgJobs[i]->wasDisplayed = TRUE;
+                arrBGJobs[i]->blnWasDisplayed = true;
             }
-            printf("%s &\n", bgJobs[i]->strFullCommand);
+            printf("%s\n", arrBGJobs[i]->strFullCommand);
         }
     }
     return 0;
@@ -505,9 +349,9 @@ int builtin_history(void)
 {
 
     int i;
-    for(i = 0; i < intTotalJobs; i++)
+    for(i = 0; i < intJobHistorySize; i++)
     {
-        printf("%d\t%s\n", i + 1, arrHistory[i]);
+        printf("%d\t%s\n", i + 1, arrJobHistory[i]);
     }
     return 0;
 }
@@ -515,9 +359,9 @@ int builtin_history(void)
 int builtin_wait(void)
 {
     int i;
-    for(i = 0; i < bgJobSize; i++)
+    for(i = 0; i < intBGJobSize; i++)
     {
-        waitpid(bgJobs[i]->pid, NULL, 0);
+        waitpid(arrBGJobs[i]->pid, NULL, 0);
     }
     return 0;
 }
@@ -525,11 +369,11 @@ int builtin_wait(void)
 int builtin_fg(void)
 {
     int i;
-    for(i = bgJobSize - 1; i > 0; i--){
-        if(bgJobs[i]->isRunning == TRUE)
+    for(i = intBGJobSize - 1; i > 0; i--){
+        if(arrBGJobs[i]->blnIsRunning)
         {
-            waitpid(bgJobs[i]->pid, NULL, 0);
-            bgJobs[i]->wasDisplayed = TRUE;
+            waitpid(arrBGJobs[i]->pid, NULL, 0);
+            arrBGJobs[i]->blnWasDisplayed = true;
             return 0;
         }
     }
@@ -537,18 +381,34 @@ int builtin_fg(void)
     return 0;
 }
 
-int builtin_fg_num(int job_num)
+int builtin_fg_num(int intJobNum)
 {
-    job_num--;
-    if(job_num < bgJobSize && bgJobs[job_num]->isRunning == TRUE)
+    intJobNum--;
+    if(intJobNum < intBGJobSize && arrBGJobs[intJobNum]->blnIsRunning == true)
     {
-        waitpid(bgJobs[job_num]->pid, NULL, 0);
-        bgJobs[job_num]->wasDisplayed = TRUE;
+        waitpid(arrBGJobs[intJobNum]->pid, NULL, 0);
+        arrBGJobs[intJobNum]->blnWasDisplayed = true;
     }
     else
     {
         fprintf(stderr, "ERROR: That is not a running Process!\n");
     }
-
     return 0;
+}
+
+int main(int argc, char * argv[])
+{
+	parseCommandLine(argc, argv);
+
+	if(blnIsBatch)
+	{
+		runInBatchMode(argc, argv);
+        builtin_exit();
+	}
+	else
+	{
+		runInInteractiveMode();
+	}
+
+	return 0;
 }

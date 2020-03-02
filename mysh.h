@@ -21,11 +21,7 @@
 /******************************
  * Defines
  ******************************/
-#define TRUE  1
-#define FALSE 0
-
 #define MAX_COMMAND_LINE 1024
-
 #define PROMPT ("mysh$ ")
 
 
@@ -35,101 +31,53 @@
 /*
  * A job struct.  Feel free to change as needed.
  */
-struct job_t {
-    char * full_command;
-    int argc;
-    char **argv;
-    int is_background;
+typedef struct job_t {
+    char * strFullCommand;
+    int intArgCount;
+    char **arrArgArray;
+    bool isBackground;
     char * binary;
-};
-typedef struct job_t job_t;
+} job_t;
 
-struct bgJob {
+typedef struct bgJob {
 	pid_t pid;
-	int isRunning;
-	int wasDisplayed;
+	bool blnIsRunning;
+	bool blnWasDisplayed;
 	char * strFullCommand;
-};
-typedef struct bgJob bgJob;
+} bgJob;
 
 /******************************
  * Global Variables
  ******************************/
+char **arrJobHistory = NULL;
+int intJobHistorySize = 0;
+
+bgJob **arrBGJobs = NULL;
+int intBGJobSize = 0;
  
 /*
  * Interactive or batch mode
  */
-int is_batch = FALSE;
-int bgJobSize = 0;
-bgJob *bgJobs[MAX_COMMAND_LINE];
+bool blnIsBatch = false;
 
-int intTotalJobs = 0;
-char *arrHistory[MAX_COMMAND_LINE];
 
 /*
  * Counts
  */
-int total_jobs_display_ctr = 0;
-int total_jobs    = 0;
-int total_jobs_bg = 0;
-int total_history = 0;
-
-/*
- * Debugging mode
- */
-int is_debug = TRUE;
+int intTotalJobs    = 0;
+int intTotalJobsInBackground = 0;
+int intTotalHistory = 0;
 
 /******************************
  * Function declarations
  ******************************/
-/*
- * Parse command line arguments passed to myshell upon startup.
- *
- * Parameters:
- *  argc : Number of command line arguments
- *  argv : Array of pointers to strings
- *
- * Returns:
- *   0 on success
- *   Negative value on error
- */
-int parse_args_main(int argc, char **argv);
-
-/*
- * Main routine for batch mode
- *
- * Parameters:
- *  None
- *
- * Returns:
- *   0 on success
- *   Negative value on error
- */
-int batch_mode(int argc, char * argv[]);
-
-/*
- * Main routine for interactive mode
- *
- * Parameters:
- *  None
- *
- * Returns:
- *   0 on success
- *   Negative value on error
- */
-int interactive_mode(void);
-
-/*
- * Launch a job
- *
- * Parameters:
- *   loc_job : job to execute
- *
- * Returns:
- *   0 on success
- *   Negative value on error 
- */
-int launch_job(job_t * loc_job);
+void parseCommandLine(int argc, char * argv[]);
+void createJobs(char *strInputFromCLI);
+void runInBatchMode(int argc, char * argv[]);
+void runInInteractiveMode();
+void addJobToHistory(job_t *CurrentJob);
+void addJobToBG(bgJob *jobToAdd);
+bool executeCommand(job_t *CurrentJob);
 
 /*
  * Built-in 'exit' command
@@ -141,7 +89,7 @@ int launch_job(job_t * loc_job);
  *   0 on success
  *   Negative value on error
  */
-int builtin_exit(void);
+void builtin_exit(void);
 
 /*
  * Built-in 'jobs' command
@@ -201,31 +149,6 @@ int builtin_fg(void);
  *   0 on success
  *   Negative value on error
  */
-int builtin_fg_num(int job_num);
-
-/*
- * creates jobs from CLI command
- *
- * Parameters:
- *	String
- *
- * Returns:
- *   0 on success
- *   Negative value on error
- */
-int createJobs(char *strInputFromCLI);
-
-/*
- * Handles foreground jobs
- *
- * Parameters:
- *	array of jobs
- *	size of array
- *
- * Returns:
- *   0 on success
- *   Negative value on error
- */
-int handlels(char **args, int argc, int is_bg);
+int builtin_fg_num(int intJobNum);
 
 #endif /* MYSHELL_H */
