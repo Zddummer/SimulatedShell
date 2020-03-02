@@ -14,6 +14,8 @@
 
 /* For fork, exec, sleep */
 #include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 #include <unistd.h>
 /* For waitpid */
 #include <sys/wait.h>
@@ -58,7 +60,9 @@ int intBGJobSize = 0;
 /*
  * Interactive or batch mode
  */
+int intFileDescriptor = 0;
 bool blnIsBatch = false;
+bool blnWasOutputRedirected = false;
 
 
 /*
@@ -72,6 +76,8 @@ int intTotalHistory = 0;
  * Function declarations
  ******************************/
 void parseCommandLine(int argc, char * argv[]);
+void handleOutRedirect(char *strFileName);
+void handleInRedirect(char *strFileName);
 void createJobs(char *strInputFromCLI);
 void runInBatchMode(int argc, char * argv[]);
 void runInInteractiveMode();

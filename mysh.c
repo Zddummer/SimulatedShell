@@ -25,6 +25,34 @@ void parseCommandLine(int argc, char * argv[])
     }
 }
 
+void handleOutRedirect(char *strFileName)
+{
+    int intErrorCheck;
+
+    intFileDescriptor = open(strFileName, O_CREAT | O_APPEND | O_WRONLY);
+
+    if(intFileDescriptor < 0)
+    {
+        fprintf(stderr, "ERROR: could not output to file!\n");
+        builtin_exit();
+    }
+
+    intErrorCheck = dup2(intFileDescriptor, STDOUT_FILENO);
+
+    if(intErrorCheck < 0)
+    {
+        fprintf(stderr, "ERROR: on dup2() system call!\n");
+        builtin_exit();
+    }
+
+    blnWasOutputRedirected = true;
+}
+
+void handleInRedirect(char *strFileName)
+{
+
+}
+
 void createJobs(char *strInputFromCLI)
 {
 	int index = 0;
@@ -39,7 +67,17 @@ void createJobs(char *strInputFromCLI)
      */
     while(tok != NULL)
     {
-        if(strcmp(tok, ";") == 0)
+        if(strcmp(tok, "<") == 0)
+        {
+            char *strFileName = strtok(NULL, " ");
+            handleInRedirect(strFileName);
+        }
+        else if(strcmp(tok, ">") == 0)
+        {
+            char *strFileName = strtok(NULL, " ");
+            handleOutRedirect(strFileName);
+        }
+        else if(strcmp(tok, ";") == 0)
         {
         	intNumJobs++;
         }
