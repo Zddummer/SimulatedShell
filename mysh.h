@@ -61,8 +61,12 @@ int intBGJobSize = 0;
  * Interactive or batch mode
  */
 int intFileDescriptor = 0;
+char *strOutputFileName;
+char *strInputFileName;
+
 bool blnIsBatch = false;
 bool blnWasOutputRedirected = false;
+bool blnWasInputRedirected = false;
 
 
 /*

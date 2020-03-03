@@ -23,13 +23,30 @@ void parseCommandLine(int argc, char * argv[])
     {
         blnIsBatch = true;
     }
+
+    int i;
+    for(i = 0; i < argc; i++)
+    {
+    	if(strcmp(argv[i], ">") == 0)
+    	{
+    		blnWasOutputRedirected = true;
+    		strOutputFileName = strdup(argv[i + 1]);
+    	}
+    	else if(strcmp(argv[i], "<") == 0)
+    	{
+    		blnIsBatch = false;
+    		blnWasInputRedirected = true;
+    		strInputFileName = strdup(argv[i + 1]);
+    		handleInRedirect(strInputFileName);
+    	}
+    }
 }
 
 void handleOutRedirect(char *strFileName)
 {
     int intErrorCheck;
 
-    intFileDescriptor = open(strFileName, O_CREAT | O_APPEND | O_WRONLY);
+    intFileDescriptor = open(strFileName, O_RDWR | O_CREAT | O_TRUNC, 0644);
 
     if(intFileDescriptor < 0)
     {
@@ -44,13 +61,27 @@ void handleOutRedirect(char *strFileName)
         fprintf(stderr, "ERROR: on dup2() system call!\n");
         builtin_exit();
     }
-
-    blnWasOutputRedirected = true;
 }
 
 void handleInRedirect(char *strFileName)
 {
+	int intErrorCheck;
 
+    intFileDescriptor = open(strFileName, O_RDONLY | O_EXCL);
+
+    if(intFileDescriptor < 0)
+    {
+        fprintf(stderr, "ERROR: could not find file!\n");
+        builtin_exit();
+    }
+
+    intErrorCheck = dup2(intFileDescriptor, STDIN_FILENO);
+
+    if(intErrorCheck < 0)
+    {
+        fprintf(stderr, "ERROR: on dup2() system call!\n");
+        builtin_exit();
+    }
 }
 
 void createJobs(char *strInputFromCLI)
@@ -69,13 +100,15 @@ void createJobs(char *strInputFromCLI)
     {
         if(strcmp(tok, "<") == 0)
         {
-            char *strFileName = strtok(NULL, " ");
-            handleInRedirect(strFileName);
+            strInputFileName = strtok(NULL, " ");
+            blnWasInputRedirected = true;
+            break;
         }
         else if(strcmp(tok, ">") == 0)
         {
-            char *strFileName = strtok(NULL, " ");
-            handleOutRedirect(strFileName);
+            strOutputFileName = strtok(NULL, " ");
+            blnWasOutputRedirected = true;
+            break;
         }
         else if(strcmp(tok, ";") == 0)
         {
@@ -105,6 +138,7 @@ void createJobs(char *strInputFromCLI)
         CurrentJob->intArgCount = 0;
         CurrentJob->arrArgArray = NULL;
         CurrentJob->isBackground = false;
+
         char *strTemp = strdup(arrCommands[i]);
         CurrentJob->binary = strdup(strTemp);
 
@@ -138,7 +172,7 @@ void createJobs(char *strInputFromCLI)
         for(j = 0; j < intTempArrIndex; j++)
         {
             char *strTempArg = strdup(arrTempArgs[j]);
-            CurrentJob->arrArgArray[j] = strdup(strTempArg);
+            CurrentJob->arrArgArray[j] = strdup(arrTempArgs[j]);
 
             strcat(CurrentJob->strFullCommand, " ");
             strcat(CurrentJob->strFullCommand, strTempArg);
@@ -205,7 +239,11 @@ void runInInteractiveMode()
         {
         	/* Strip off the newline */
         	strtok(strInputFromCLI, "\n");
-        	
+
+        	if(strcmp(strInputFromCLI, "\n") == 0)
+        	{
+        		continue;
+        	}
         	/*
          	 * Parse and execute the command
          	 */
@@ -309,6 +347,15 @@ bool executeCommand(job_t *CurrentJob)
 	}
 	else if(c_pid == 0)
 	{
+		if(blnWasOutputRedirected)
+		{
+			handleOutRedirect(strOutputFileName);
+		}
+		if(blnWasInputRedirected)
+		{
+			handleInRedirect(strInputFileName);
+		}
+
 		execvp(binary, args);
 
 		fprintf(stderr, "ERROR: Exec failed!\n");
@@ -319,6 +366,9 @@ bool executeCommand(job_t *CurrentJob)
 		if(CurrentJob->isBackground == false)
         {
             waitpid(c_pid, &status, 0);
+            if(blnWasOutputRedirected){
+            	blnWasOutputRedirected = false;
+            }
         }
         else
         {
