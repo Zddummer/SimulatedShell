@@ -1,6 +1,10 @@
 /*
  * Zach Dummer
  *
+ * Header file for mysh.c
+ *
+ * Date last modified : 3/3/2020
+ *
  * CS441/541: Project 3
  *
  */
@@ -31,7 +35,7 @@
  * Structures
  ******************************/
 /*
- * A job struct.  Feel free to change as needed.
+ * A job struct.
  */
 typedef struct job_t {
     char * strFullCommand;
@@ -41,6 +45,9 @@ typedef struct job_t {
     char * binary;
 } job_t;
 
+/*
+ * A book keeping struct for jobs in the background.
+ */
 typedef struct bgJob {
 	pid_t pid;
 	bool blnIsRunning;
@@ -51,6 +58,9 @@ typedef struct bgJob {
 /******************************
  * Global Variables
  ******************************/
+/*
+ * Book keeping variables.
+ */
 char **arrJobHistory = NULL;
 int intJobHistorySize = 0;
 
@@ -58,16 +68,18 @@ bgJob **arrBGJobs = NULL;
 int intBGJobSize = 0;
  
 /*
- * Interactive or batch mode
+ * Variables for file redirect.
  */
 int intFileDescriptor = 0;
 char *strOutputFileName;
 char *strInputFileName;
 
+/*
+ * Booleans.
+ */
 bool blnIsBatch = false;
 bool blnWasOutputRedirected = false;
 bool blnWasInputRedirected = false;
-
 
 /*
  * Counts
@@ -79,14 +91,108 @@ int intTotalHistory = 0;
 /******************************
  * Function declarations
  ******************************/
+
+/*
+ * Check valid args and set mode
+ *
+ * Parameters:
+ *   arg count
+ *	 arg array
+ *
+ * Returns:
+ *   void
+ */
 void parseCommandLine(int argc, char * argv[]);
-void handleOutRedirect();
-void handleInRedirect();
-void createJobs(char *strInputFromCLI);
+
+/*
+ * Start of pipeline for batch mode
+ *
+ * Parameters:
+ *   arg count
+ *	 arg array
+ *
+ * Returns:
+ *   void
+ */
 void runInBatchMode(int argc, char * argv[]);
+
+/*
+ * Start of pipeline for interactive mode
+ *
+ * Parameters:
+ *   arg count
+ *	 arg array
+ *
+ * Returns:
+ *   void
+ */
 void runInInteractiveMode();
+
+/*
+ * Creates jobs from string
+ *
+ * Parameters:
+ *   Command
+ *
+ * Returns:
+ *   void
+ */
+void createJobs(char *strInputFromCLI);
+
+/*
+ * adds job to history for book keeping
+ *
+ * Parameters:
+ *   Job to add
+ *
+ * Returns:
+ *   void
+ */
 void addJobToHistory(job_t *CurrentJob);
+
+/*
+ * book keeping for background jobs
+ *
+ * Parameters:
+ *   Job to add
+ *
+ * Returns:
+ *   void
+ */
 void addJobToBG(bgJob *jobToAdd);
+
+/*
+ * Changes program output from STDOUT to a file
+ *
+ * Parameters:
+ *   None
+ *
+ * Returns:
+ *   void
+ */
+void handleOutRedirect();
+
+/*
+ * Changes program input from STDIN to a file
+ *
+ * Parameters:
+ *   None
+ *
+ * Returns:
+ *   void
+ */
+void handleInRedirect();
+
+/*
+ * executes a created job
+ *
+ * Parameters:
+ *   Job to execute
+ *
+ * Returns:
+ *   true if succseful
+ *	 else false
+ */
 bool executeCommand(job_t *CurrentJob);
 
 /*
