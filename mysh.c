@@ -23,23 +23,6 @@ void parseCommandLine(int argc, char * argv[])
     {
         blnIsBatch = true;
     }
-
-    int i;
-    for(i = 0; i < argc; i++)
-    {
-    	if(strcmp(argv[i], ">") == 0)
-    	{
-    		blnWasOutputRedirected = true;
-    		strOutputFileName = strdup(argv[i + 1]);
-    	}
-    	else if(strcmp(argv[i], "<") == 0)
-    	{
-    		blnIsBatch = false;
-    		blnWasInputRedirected = true;
-    		strInputFileName = strdup(argv[i + 1]);
-    		handleInRedirect(strInputFileName);
-    	}
-    }
 }
 
 void handleOutRedirect(char *strFileName)
@@ -121,7 +104,7 @@ void createJobs(char *strInputFromCLI)
 
         arrCommands = realloc(arrCommands, sizeof(char*) * (index + 1));
         char *dup = malloc(strlen(tok) + 1);
-        strcpy(dup, tok);
+        dup = strdup(tok); // changed to use strdup
         arrCommands[index++] = dup;
         tok = strtok(NULL, " ");
 
@@ -155,7 +138,7 @@ void createJobs(char *strInputFromCLI)
             }
             arrTempArgs = realloc(arrTempArgs, sizeof(char*) * (intTempArrIndex + 1));
             char *strTemp = malloc(strlen(arrCommands[i]) + 1);
-            strcpy(strTemp, arrCommands[i]);
+            strTemp = strdup(arrCommands[i]); // Changed to use strdup
             arrTempArgs[intTempArrIndex++] = strTemp;
 
             i++;
@@ -179,6 +162,7 @@ void createJobs(char *strInputFromCLI)
         }
         addJobToHistory(CurrentJob);
         executeCommand(CurrentJob);
+        
     }
 
     
@@ -227,6 +211,7 @@ void runInInteractiveMode()
          * Print the prompt
          */
         printf("%s", PROMPT);
+
         /*
          * Read stdin, break out of loop if Ctrl-D
          */
@@ -242,7 +227,16 @@ void runInInteractiveMode()
 
         	if(strcmp(strInputFromCLI, "\n") == 0)
         	{
+        		if(isatty(STDIN_FILENO) == 0)
+        		{
+        			printf("\n");
+        		}
         		continue;
+        	}
+
+        	if(isatty(STDIN_FILENO) == 0)
+        	{
+        		printf("\n");
         	}
         	/*
          	 * Parse and execute the command
@@ -256,11 +250,11 @@ void runInInteractiveMode()
 void addJobToHistory(job_t *CurrentJob)
 {
     char *command = malloc(strlen(CurrentJob->strFullCommand) + 1);
-    strcpy(command, CurrentJob->strFullCommand);
+    command = strdup(CurrentJob->strFullCommand); // changed to strdup
 
     arrJobHistory = realloc(arrJobHistory, sizeof(char*) * (intJobHistorySize + 1));
     char *dup = malloc(strlen(command) + 1);
-    strcpy(dup, command);
+    dup = strdup(command); // changed to strdup
 
     if(CurrentJob->isBackground)
     {
@@ -372,6 +366,7 @@ bool executeCommand(job_t *CurrentJob)
         }
         else
         {
+        	waitpid(0, NULL, WNOHANG);
             intTotalJobsInBackground++;
 
             bgJob *newJob = malloc(sizeof(bgJob));
@@ -388,8 +383,22 @@ bool executeCommand(job_t *CurrentJob)
 
 void builtin_exit(void)
 {
+	int intNumJobsStillRunning = 0;
 
-    builtin_jobs();
+    int i;
+    for(i = 0; i < intBGJobSize; i++)
+    {
+        if(waitpid(arrBGJobs[i]->pid, NULL, WNOHANG) == 0)
+        { 
+            intNumJobsStillRunning++;
+        }
+    }
+    
+    if(intNumJobsStillRunning > 0)
+    {
+    	printf("Still waiting on %d jobs to finish.\n", intNumJobsStillRunning);
+    }
+
     builtin_wait();
 
     /*
