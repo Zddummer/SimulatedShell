@@ -25,11 +25,11 @@ void parseCommandLine(int argc, char * argv[])
     }
 }
 
-void handleOutRedirect(char *strFileName)
+void handleOutRedirect()
 {
     int intErrorCheck;
 
-    intFileDescriptor = open(strFileName, O_RDWR | O_CREAT | O_TRUNC, 0644);
+    intFileDescriptor = open(strOutputFileName, O_RDWR | O_CREAT | O_TRUNC, 0644);
 
     if(intFileDescriptor < 0)
     {
@@ -46,11 +46,11 @@ void handleOutRedirect(char *strFileName)
     }
 }
 
-void handleInRedirect(char *strFileName)
+void handleInRedirect()
 {
 	int intErrorCheck;
 
-    intFileDescriptor = open(strFileName, O_RDONLY | O_EXCL);
+    intFileDescriptor = open(strInputFileName, O_RDONLY | O_EXCL);
 
     if(intFileDescriptor < 0)
     {
@@ -71,6 +71,7 @@ void createJobs(char *strInputFromCLI)
 {
 	int index = 0;
 	int intNumJobs = 0;
+
     char **arrCommands = NULL;
     char *command = malloc(strlen(strInputFromCLI) + 1);
     strcpy(command, strInputFromCLI);
@@ -83,13 +84,13 @@ void createJobs(char *strInputFromCLI)
     {
         if(strcmp(tok, "<") == 0)
         {
-            strInputFileName = strtok(NULL, " ");
+            strInputFileName = strdup(strtok(NULL, " "));
             blnWasInputRedirected = true;
             break;
         }
         else if(strcmp(tok, ">") == 0)
         {
-            strOutputFileName = strtok(NULL, " ");
+            strOutputFileName = strdup(strtok(NULL, " "));
             blnWasOutputRedirected = true;
             break;
         }
@@ -121,7 +122,6 @@ void createJobs(char *strInputFromCLI)
         CurrentJob->intArgCount = 0;
         CurrentJob->arrArgArray = NULL;
         CurrentJob->isBackground = false;
-
         char *strTemp = strdup(arrCommands[i]);
         CurrentJob->binary = strdup(strTemp);
 
@@ -343,11 +343,11 @@ bool executeCommand(job_t *CurrentJob)
 	{
 		if(blnWasOutputRedirected)
 		{
-			handleOutRedirect(strOutputFileName);
+			handleOutRedirect();
 		}
 		if(blnWasInputRedirected)
 		{
-			handleInRedirect(strInputFileName);
+			handleInRedirect();
 		}
 
 		execvp(binary, args);

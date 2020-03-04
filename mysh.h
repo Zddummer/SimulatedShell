@@ -80,8 +80,8 @@ int intTotalHistory = 0;
  * Function declarations
  ******************************/
 void parseCommandLine(int argc, char * argv[]);
-void handleOutRedirect(char *strFileName);
-void handleInRedirect(char *strFileName);
+void handleOutRedirect();
+void handleInRedirect();
 void createJobs(char *strInputFromCLI);
 void runInBatchMode(int argc, char * argv[]);
 void runInInteractiveMode();
