@@ -1,5 +1,9 @@
 /*
- * [YOUR NAME HERE]
+ * Zach Dummer
+ *
+ * Header file for mysh.c
+ *
+ * Date last modified : 3/3/2020
  *
  * CS441/541: Project 3
  *
@@ -10,9 +14,12 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdbool.h>
 
 /* For fork, exec, sleep */
 #include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 #include <unistd.h>
 /* For waitpid */
 #include <sys/wait.h>
@@ -20,11 +27,7 @@
 /******************************
  * Defines
  ******************************/
-#define TRUE  1
-#define FALSE 0
-
 #define MAX_COMMAND_LINE 1024
-
 #define PROMPT ("mysh$ ")
 
 
@@ -32,90 +35,165 @@
  * Structures
  ******************************/
 /*
- * A job struct.  Feel free to change as needed.
+ * A job struct.
  */
-struct job_t {
-    char * full_command;
-    int argc;
-    char **argv;
-    int is_background;
+typedef struct job_t {
+    char * strFullCommand;
+    int intArgCount;
+    char **arrArgArray;
+    bool isBackground;
     char * binary;
-};
-typedef struct job_t job_t;
+} job_t;
+
+/*
+ * A book keeping struct for jobs in the background.
+ */
+typedef struct bgJob {
+	pid_t pid;
+	bool blnIsRunning;
+	bool blnWasDisplayed;
+	char * strFullCommand;
+} bgJob;
 
 /******************************
  * Global Variables
  ******************************/
+/*
+ * Book keeping variables.
+ */
+char **arrJobHistory = NULL;
+int intJobHistorySize = 0;
+
+bgJob **arrBGJobs = NULL;
+int intBGJobSize = 0;
  
 /*
- * Interactive or batch mode
+ * Variables for file redirect.
  */
-int is_batch = FALSE;
+int intFileDescriptor = 0;
+char *strOutputFileName;
+char *strInputFileName;
+
+/*
+ * Booleans.
+ */
+bool blnIsBatch = false;
+bool blnWasOutputRedirected = false;
+bool blnWasInputRedirected = false;
 
 /*
  * Counts
  */
-int total_jobs_display_ctr = 0;
-int total_jobs    = 0;
-int total_jobs_bg = 0;
-int total_history = 0;
-
-/*
- * Debugging mode
- */
-int is_debug = TRUE;
+int intTotalJobs    = 0;
+int intTotalJobsInBackground = 0;
+int intTotalHistory = 0;
 
 /******************************
  * Function declarations
  ******************************/
-/*
- * Parse command line arguments passed to myshell upon startup.
- *
- * Parameters:
- *  argc : Number of command line arguments
- *  argv : Array of pointers to strings
- *
- * Returns:
- *   0 on success
- *   Negative value on error
- */
-int parse_args_main(int argc, char **argv);
 
 /*
- * Main routine for batch mode
+ * Check valid args and set mode
  *
  * Parameters:
- *  None
+ *   arg count
+ *	 arg array
  *
  * Returns:
- *   0 on success
- *   Negative value on error
+ *   void
  */
-int batch_mode(void);
+void parseCommandLine(int argc, char * argv[]);
 
 /*
- * Main routine for interactive mode
+ * Start of pipeline for batch mode
  *
  * Parameters:
- *  None
+ *   arg count
+ *	 arg array
  *
  * Returns:
- *   0 on success
- *   Negative value on error
+ *   void
  */
-int interactive_mode(void);
+void runInBatchMode(int argc, char * argv[]);
 
 /*
- * Launch a job
+ * Start of pipeline for interactive mode
  *
  * Parameters:
- *   loc_job : job to execute
+ *   arg count
+ *	 arg array
  *
  * Returns:
- *   0 on success
- *   Negative value on error 
+ *   void
  */
-int launch_job(job_t * loc_job);
+void runInInteractiveMode();
+
+/*
+ * Creates jobs from string
+ *
+ * Parameters:
+ *   Command
+ *
+ * Returns:
+ *   void
+ */
+void createJobs(char *strInputFromCLI);
+
+/*
+ * adds job to history for book keeping
+ *
+ * Parameters:
+ *   Job to add
+ *
+ * Returns:
+ *   void
+ */
+void addJobToHistory(job_t *CurrentJob);
+
+/*
+ * book keeping for background jobs
+ *
+ * Parameters:
+ *   Job to add
+ *
+ * Returns:
+ *   void
+ */
+void addJobToBG(bgJob *jobToAdd);
+
+/*
+ * Changes program output from STDOUT to a file
+ *
+ * Parameters:
+ *   None
+ *
+ * Returns:
+ *   void
+ */
+void handleOutRedirect();
+
+/*
+ * Changes program input from STDIN to a file
+ *
+ * Parameters:
+ *   None
+ *
+ * Returns:
+ *   void
+ */
+void handleInRedirect();
+
+/*
+ * executes a created job
+ *
+ * Parameters:
+ *   Job to execute
+ *
+ * Returns:
+ *   true if succseful
+ *	 else false
+ */
+bool executeCommand(job_t *CurrentJob);
 
 /*
  * Built-in 'exit' command
@@ -127,7 +205,7 @@ int launch_job(job_t * loc_job);
  *   0 on success
  *   Negative value on error
  */
-int builtin_exit(void);
+void builtin_exit(void);
 
 /*
  * Built-in 'jobs' command
@@ -187,6 +265,6 @@ int builtin_fg(void);
  *   0 on success
  *   Negative value on error
  */
-int builtin_fg_num(int job_num);
+int builtin_fg_num(int intJobNum);
 
 #endif /* MYSHELL_H */

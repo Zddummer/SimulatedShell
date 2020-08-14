@@ -1,0 +1,11 @@
+ls tests ..
+pwd
+date
+echo 1 2 3
+echo this is an echo test
+sleep 5 &
+fg
+jobs
+history
+wait
+exit
